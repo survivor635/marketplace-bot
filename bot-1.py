@@ -5,7 +5,12 @@ import threading
 from contextlib import closing
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    ReplyKeyboardMarkup,
+    Update,
+)
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -25,6 +30,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 NAME, PRICE, PHOTO = range(3)
+
+BUY_LABEL = "🛒 Buy"
+BROWSE_LABEL = "📦 Browse"
+MYITEMS_LABEL = "📋 My Items"
+CANCEL_LABEL = "❌ Cancel"
+
+MAIN_KEYBOARD = ReplyKeyboardMarkup(
+    [[BUY_LABEL, BROWSE_LABEL], [MYITEMS_LABEL, CANCEL_LABEL]],
+    resize_keyboard=True,
+)
 
 def init_db():
     with closing(sqlite3.connect(DB_PATH)) as conn:
@@ -80,7 +95,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/buy - List an item for sale\n"
         "/browse - Browse items for sale\n"
         "/myitems - View & remove your own listings\n"
-        "/cancel - Cancel the current action"
+        "/cancel - Cancel the current action",
+        reply_markup=MAIN_KEYBOARD,
     )
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -199,7 +215,10 @@ def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
     sell_conv = ConversationHandler(
-        entry_points=[CommandHandler("buy", sell_start)],
+        entry_points=[
+            CommandHandler("buy", sell_start),
+            MessageHandler(filters.Regex(f"^{BUY_LABEL}$"), sell_start),
+        ],
         states={
             NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, sell_name)],
             PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, sell_price)],
@@ -208,13 +227,18 @@ def main():
                 CommandHandler("skip", sell_skip_photo),
             ],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            MessageHandler(filters.Regex(f"^{CANCEL_LABEL}$"), cancel),
+        ],
     )
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(sell_conv)
     app.add_handler(CommandHandler("browse", browse))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BROWSE_LABEL}$"), browse))
     app.add_handler(CommandHandler("myitems", myitems))
+    app.add_handler(MessageHandler(filters.Regex(f"^{MYITEMS_LABEL}$"), myitems))
     app.add_handler(CallbackQueryHandler(contact_callback, pattern=r"^contact:"))
     app.add_handler(CallbackQueryHandler(remove_callback, pattern=r"^remove:"))
 
@@ -223,4 +247,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
