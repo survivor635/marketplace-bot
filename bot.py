@@ -1,7 +1,9 @@
 import logging
 import os
 import sqlite3
+import threading
 from contextlib import closing
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
@@ -14,19 +16,16 @@ from telegram.ext import (
     filters,
 )
 
-# ---------- Config ----------
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "PUT_YOUR_TOKEN_HERE")
-DB_PATH = os.environ.get("DB_PATH", "marketplace.db")
+DB_PATH = "marketplace.db"
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# ---------- Conversation states for /sell ----------
 NAME, PRICE, PHOTO = range(3)
 
-# ---------- Database ----------
 def init_db():
     with closing(sqlite3.connect(DB_PATH)) as conn:
         conn.execute(
@@ -44,7 +43,6 @@ def init_db():
         )
         conn.commit()
 
-
 def add_listing(seller_id, seller_username, name, price, photo_file_id):
     with closing(sqlite3.connect(DB_PATH)) as conn:
         cur = conn.execute(
@@ -55,36 +53,27 @@ def add_listing(seller_id, seller_username, name, price, photo_file_id):
         conn.commit()
         return cur.lastrowid
 
-
 def get_listings(limit=10, offset=0):
     with closing(sqlite3.connect(DB_PATH)) as conn:
         conn.row_factory = sqlite3.Row
-        rows = conn.execute(
+        return conn.execute(
             "SELECT * FROM listings ORDER BY created_at DESC LIMIT ? OFFSET ?",
             (limit, offset),
         ).fetchall()
-        return rows
-
 
 def get_listing(listing_id):
     with closing(sqlite3.connect(DB_PATH)) as conn:
         conn.row_factory = sqlite3.Row
-        return conn.execute(
-            "SELECT * FROM listings WHERE id = ?", (listing_id,)
-        ).fetchone()
-
+        return conn.execute("SELECT * FROM listings WHERE id = ?", (listing_id,)).fetchone()
 
 def delete_listing(listing_id, seller_id):
     with closing(sqlite3.connect(DB_PATH)) as conn:
         cur = conn.execute(
-            "DELETE FROM listings WHERE id = ? AND seller_id = ?",
-            (listing_id, seller_id),
+            "DELETE FROM listings WHERE id = ? AND seller_id = ?", (listing_id, seller_id)
         )
         conn.commit()
         return cur.rowcount > 0
 
-
-# ---------- Handlers: basic ----------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Welcome to the Marketplace Bot!\n\n"
@@ -94,52 +83,39 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/cancel - Cancel the current action"
     )
 
-
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     await update.message.reply_text("Cancelled.")
     return ConversationHandler.END
 
-
-# ---------- Handlers: /sell conversation ----------
 async def sell_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("What are you selling? (item name)")
     return NAME
-
 
 async def sell_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["name"] = update.message.text
     await update.message.reply_text("What's the price?")
     return PRICE
 
-
 async def sell_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["price"] = update.message.text
-    await update.message.reply_text(
-        "Send a photo of the item (or type /skip to post without one)."
-    )
+    await update.message.reply_text("Send a photo of the item (or type /skip to post without one).")
     return PHOTO
-
 
 async def sell_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photo_file_id = update.message.photo[-1].file_id
     await finish_listing(update, context, photo_file_id)
     return ConversationHandler.END
 
-
 async def sell_skip_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await finish_listing(update, context, None)
     return ConversationHandler.END
 
-
 async def finish_listing(update, context, photo_file_id):
     user = update.effective_user
     listing_id = add_listing(
-        user.id,
-        user.username or user.first_name,
-        context.user_data["name"],
-        context.user_data["price"],
-        photo_file_id,
+        user.id, user.username or user.first_name,
+        context.user_data["name"], context.user_data["price"], photo_file_id,
     )
     await update.message.reply_text(
         f"Listed! #{listing_id}: {context.user_data['name']} - {context.user_data['price']}\n"
@@ -147,26 +123,20 @@ async def finish_listing(update, context, photo_file_id):
     )
     context.user_data.clear()
 
-
-# ---------- Handlers: /browse ----------
 async def browse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     rows = get_listings(limit=10)
     if not rows:
         await update.message.reply_text("No listings yet. Be the first with /sell!")
         return
-
     for row in rows:
         caption = f"#{row['id']} {row['name']} - {row['price']}\nSeller: @{row['seller_username']}"
         keyboard = InlineKeyboardMarkup(
             [[InlineKeyboardButton("Contact seller", callback_data=f"contact:{row['id']}")]]
         )
         if row["photo_file_id"]:
-            await update.message.reply_photo(
-                row["photo_file_id"], caption=caption, reply_markup=keyboard
-            )
+            await update.message.reply_photo(row["photo_file_id"], caption=caption, reply_markup=keyboard)
         else:
             await update.message.reply_text(caption, reply_markup=keyboard)
-
 
 async def contact_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -176,33 +146,23 @@ async def contact_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not row:
         await query.message.reply_text("That listing no longer exists.")
         return
-    await query.message.reply_text(
-        f"Contact the seller: @{row['seller_username']} about \"{row['name']}\""
-    )
+    await query.message.reply_text(f"Contact the seller: @{row['seller_username']} about \"{row['name']}\"")
 
-
-# ---------- Handlers: /myitems ----------
 async def myitems(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     with closing(sqlite3.connect(DB_PATH)) as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
-            "SELECT * FROM listings WHERE seller_id = ? ORDER BY created_at DESC",
-            (user.id,),
+            "SELECT * FROM listings WHERE seller_id = ? ORDER BY created_at DESC", (user.id,)
         ).fetchall()
-
     if not rows:
         await update.message.reply_text("You have no active listings.")
         return
-
     for row in rows:
         keyboard = InlineKeyboardMarkup(
             [[InlineKeyboardButton("Remove listing", callback_data=f"remove:{row['id']}")]]
         )
-        await update.message.reply_text(
-            f"#{row['id']} {row['name']} - {row['price']}", reply_markup=keyboard
-        )
-
+        await update.message.reply_text(f"#{row['id']} {row['name']} - {row['price']}", reply_markup=keyboard)
 
 async def remove_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -214,8 +174,27 @@ async def remove_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await query.edit_message_text("Couldn't remove that listing (not yours or already gone).")
 
+class _PingHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is running")
+
+    def log_message(self, format, *args):
+        pass  # silence default request logging
+
+
+def _run_ping_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), _PingHandler)
+    server.serve_forever()
+
 
 def main():
+    # Render's free tier expects a web service bound to a port,
+    # so we run a tiny placeholder server in the background.
+    threading.Thread(target=_run_ping_server, daemon=True).start()
+
     init_db()
     app = Application.builder().token(BOT_TOKEN).build()
 
@@ -242,6 +221,6 @@ def main():
     logger.info("Bot starting...")
     app.run_polling()
 
-
 if __name__ == "__main__":
     main()
+    
