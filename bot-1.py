@@ -77,7 +77,7 @@ def delete_listing(listing_id, seller_id):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Welcome to the Marketplace Bot!\n\n"
-        "/sell - List an item for sale\n"
+        "/buy - List an item for sale\n"
         "/browse - Browse items for sale\n"
         "/myitems - View & remove your own listings\n"
         "/cancel - Cancel the current action"
@@ -126,7 +126,7 @@ async def finish_listing(update, context, photo_file_id):
 async def browse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     rows = get_listings(limit=10)
     if not rows:
-        await update.message.reply_text("No listings yet. Be the first with /sell!")
+        await update.message.reply_text("No listings yet. Be the first with /buy!")
         return
     for row in rows:
         caption = f"#{row['id']} {row['name']} - {row['price']}\nSeller: @{row['seller_username']}"
@@ -199,7 +199,7 @@ def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
     sell_conv = ConversationHandler(
-        entry_points=[CommandHandler("sell", sell_start)],
+        entry_points=[CommandHandler("buy", sell_start)],
         states={
             NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, sell_name)],
             PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, sell_price)],
@@ -223,3 +223,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
