@@ -1,3 +1,0 @@
-aiogram==3.13.1
-libsql
-python-dotenv
