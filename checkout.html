@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Checkout — {{ product.title }}{% endblock %}
+
+{% block content %}
+
+<a href="{{ url_for('product_detail', product_id=product.product_id) }}" class="back-link">&larr; Back to item</a>
+
+<div class="form-card">
+  <h1>Checkout</h1>
+  <p style="color:var(--text-muted); font-size:14px; margin:4px 0 0;">{{ product.title }}</p>
+
+  <form method="post" id="checkout-form">
+    <div class="order-summary" id="order-summary">
+      <div class="row"><span>Unit price</span><span>₦{{ '{:,.2f}'.format(product.price) }}</span></div>
+      <div class="row"><span>Quantity</span><span id="qty-display">1</span></div>
+      <div class="row"><span>Total</span><span id="total-display">₦{{ '{:,.2f}'.format(product.price) }}</span></div>
+    </div>
+
+    <div class="field">
+      <label for="quantity">Quantity ({{ product.stock_qty }} available)</label>
+      <input type="number" id="quantity" name="quantity" min="1" max="{{ product.stock_qty }}" value="1" required>
+    </div>
+
+    <div class="field">
+      <label for="name">Full name</label>
+      <input type="text" id="name" name="name" required>
+    </div>
+
+    <div class="field">
+      <label for="email">Email (your receipt goes here)</label>
+      <input type="email" id="email" name="email" required>
+    </div>
+
+    <div class="field">
+      <label for="phone">Phone number</label>
+      <input type="tel" id="phone" name="phone" required>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Continue — Pay ₦{{ '{:,.2f}'.format(product.price) }} by bank transfer</button>
+    <p class="trust-line">Next you'll see our bank details and can upload your transfer receipt.</p>
+  </form>
+</div>
+
+<script>
+  const price = {{ product.price }};
+  const qtyInput = document.getElementById('quantity');
+  const qtyDisplay = document.getElementById('qty-display');
+  const totalDisplay = document.getElementById('total-display');
+  const submitBtn = document.querySelector('.btn-primary[type="submit"]');
+
+  function formatNaira(n) {
+    return '₦' + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  qtyInput.addEventListener('input', () => {
+    const qty = Math.max(1, parseInt(qtyInput.value || '1', 10));
+    const total = price * qty;
+    qtyDisplay.textContent = qty;
+    totalDisplay.textContent = formatNaira(total);
+    submitBtn.textContent = `Continue — Pay ${formatNaira(total)} by bank transfer`;
+  });
+</script>
+
+{% endblock %}

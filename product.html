@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ product.title }} — All Toolz Market{% endblock %}
+
+{% block content %}
+
+<div class="product-page">
+  <a href="{{ url_for('home') }}" class="back-link">&larr; Back to store</a>
+
+  <div class="detail-ticket">
+    <div class="detail-body">
+      <span class="ticket-category">In stock</span>
+      <h1>{{ product.title }}</h1>
+      <p>{{ product.description or 'No description provided.' }}</p>
+    </div>
+    <div class="perforation"></div>
+    <div class="detail-stub">
+      <div>
+        <span class="detail-price">₦{{ '{:,.2f}'.format(product.price) }}</span><br>
+        <span class="ticket-stock {{ 'low' if product.stock_qty <= 3 }}">{{ product.stock_qty }} left</span>
+      </div>
+      <a href="{{ url_for('checkout', product_id=product.product_id) }}" class="btn btn-primary" style="width:auto;">
+        Buy now
+      </a>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
