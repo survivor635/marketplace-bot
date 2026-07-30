@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Order status — Marketplace{% endblock %}
+
+{% block content %}
+
+<div class="receipt-page">
+  {% if order.status == 'confirmed' %}
+    <span class="stamp">✓ CONFIRMED</span>
+    <h1>Payment confirmed!</h1>
+    <p>Contact the seller below to receive your item.</p>
+  {% elif order.status == 'rejected' %}
+    <span class="stamp failed">✕ NOT CONFIRMED</span>
+    <h1>We couldn't confirm this payment</h1>
+    <p>Please contact support, or try placing the order again.</p>
+  {% elif order.status == 'awaiting_review' %}
+    <span class="stamp" style="border-color:var(--amber); color:var(--amber);">⏳ IN REVIEW</span>
+    <h1>Proof received</h1>
+    <p>We're checking your payment now — this page will update once it's confirmed.</p>
+  {% else %}
+    <span class="stamp" style="border-color:var(--amber); color:var(--amber);">WAITING FOR PAYMENT</span>
+    <h1>Almost there</h1>
+    <p>We're still waiting on your bank transfer and screenshot.</p>
+  {% endif %}
+
+  <div class="receipt-card">
+    <div class="row"><span>Order #</span><span>{{ order.order_reference }}</span></div>
+    <div class="row"><span>Item</span><span>{{ product.title if product else '(item unavailable)' }}</span></div>
+    <div class="row"><span>Total</span><span>₦{{ '{:,.2f}'.format(order.total_price) }}</span></div>
+  </div>
+
+  {% if order.status == 'confirmed' and seller %}
+    <div class="seller-contact-box">
+      <p style="margin:0 0 4px; color:var(--text);">Reach out to {{ seller.name }} to get your item:</p>
+      {% if seller_link %}
+        <a class="small-link-btn" href="{{ seller_link }}" target="_blank" rel="noopener">
+          Message on {{ seller.contact_platform|capitalize }}
+        </a>
+      {% else %}
+        <p style="color:var(--text-muted); font-size:13px;">Contact info unavailable — please reach support.</p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if order.status == 'pending_payment' %}
+    <p class="trust-line">
+      <a href="{{ url_for('payment_instructions', reference=order.order_reference) }}" style="color:var(--teal);">&rarr; View bank details &amp; upload proof</a>
+    </p>
+  {% endif %}
+  <p class="trust-line"><a href="{{ url_for('home') }}" style="color:var(--teal);">&larr; Continue shopping</a></p>
+</div>
+
+{% endblock %}

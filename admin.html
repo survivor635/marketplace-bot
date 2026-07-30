@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Order review — Marketplace{% endblock %}
+
+{% block content %}
+
+<div class="form-card" style="max-width:720px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+    <h1>Pending orders</h1>
+    <a href="{{ url_for('admin_logout') }}" style="font-size:13px; color:var(--text-muted);">Log out</a>
+  </div>
+  <p style="color:var(--text-muted); font-size:14px; margin:4px 0 22px;">
+    Confirm only after checking the payment screenshot sent to your Telegram.
+  </p>
+
+  {% if not orders %}
+    <div class="empty-state">Nothing waiting on review right now.</div>
+  {% endif %}
+
+  {% for order in orders %}
+    <div class="order-summary" style="margin-bottom:16px;">
+      <div class="row"><span>Order</span><span>#{{ order.order_reference }}</span></div>
+      <div class="row"><span>Item</span><span>{{ order.product_title }}</span></div>
+      <div class="row"><span>Total</span><span>₦{{ '{:,.2f}'.format(order.total_price) }}</span></div>
+      <div class="row"><span>Buyer</span><span>{{ order.buyer_name }} ({{ order.buyer_email }})</span></div>
+      <div class="row"><span>Seller</span><span>{{ order.seller_name }} ({{ order.seller_email }})</span></div>
+      <div class="row"><span>Status</span><span>{{ order.status }}</span></div>
+    </div>
+    <div style="display:flex; gap:10px; margin-bottom:30px;">
+      <form method="post" action="{{ url_for('admin_confirm', reference=order.order_reference) }}" style="flex:1;">
+        <button type="submit" class="btn btn-primary">Confirm</button>
+      </form>
+      <form method="post" action="{{ url_for('admin_reject', reference=order.order_reference) }}" style="flex:1;">
+        <button type="submit" class="btn btn-secondary">Reject</button>
+      </form>
+    </div>
+  {% endfor %}
+</div>
+
+{% endblock %}
