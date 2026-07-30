@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Feed — Marketplace{% endblock %}
+
+{% block content %}
+
+{% if current_user %}
+  <form method="post" action="{{ url_for('post_new') }}" class="form-card" style="margin-bottom:30px;">
+    <div class="field" style="margin-bottom:12px;">
+      <textarea name="content" rows="3" placeholder="What's on your mind?" required
+        style="width:100%; padding:12px 14px; border-radius:9px; border:1px solid var(--border); background:var(--surface-raised); color:var(--text); font-family:var(--font-body); font-size:15px;"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Post</button>
+  </form>
+{% else %}
+  <p class="trust-line"><a href="{{ url_for('login') }}" style="color:var(--teal);">Log in</a> to post, like, or comment.</p>
+{% endif %}
+
+{% if not posts %}
+  <div class="empty-state">No posts yet — be the first to share something.</div>
+{% endif %}
+
+{% for post in posts %}
+  <div class="post-card">
+    <div class="post-header">
+      <a href="{{ url_for('profile', user_id=post.user_id) }}" class="post-author">{{ post.author_name }}</a>
+      <span class="post-time">{{ post.created_at }}</span>
+    </div>
+    <p class="post-content">{{ post.content }}</p>
+    <div class="post-actions">
+      <form method="post" action="{{ url_for('post_like', post_id=post.post_id) }}" class="inline-form">
+        <button type="submit" class="post-action-btn {{ 'liked' if post.liked_by_me }}">
+          ♥ {{ post.like_count }}
+        </button>
+      </form>
+      <span class="post-action-btn" style="cursor:default;">💬 {{ post.comments|length }}</span>
+    </div>
+
+    {% if post.comments %}
+      <div class="comment-list">
+        {% for c in post.comments %}
+          <div class="comment-row">
+            <a href="{{ url_for('profile', user_id=c.user_id) }}" class="comment-author">{{ c.author_name }}</a>
+            <span class="comment-text">{{ c.content }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% if current_user %}
+      <form method="post" action="{{ url_for('post_comment', post_id=post.post_id) }}" class="comment-form">
+        <input type="text" name="content" placeholder="Write a comment..." required>
+        <button type="submit">Reply</button>
+      </form>
+    {% endif %}
+  </div>
+{% endfor %}
+
+{% endblock %}
