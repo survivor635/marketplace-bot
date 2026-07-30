@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ profile_user.name }} — Marketplace{% endblock %}
+
+{% block content %}
+
+<div class="profile-header">
+  {% if profile_user.profile_photo %}
+    <img class="profile-avatar" src="{{ profile_user.profile_photo }}" alt="">
+  {% else %}
+    <span class="profile-avatar profile-avatar-fallback">{{ profile_user.name[0]|upper }}</span>
+  {% endif %}
+  <div>
+    <h1>{{ profile_user.name }}</h1>
+    {% if profile_user.is_seller %}
+      <span class="status-pill" style="border-color:var(--teal); color:var(--teal);">Seller</span>
+    {% endif %}
+  </div>
+</div>
+
+{% if current_user and current_user.user_id == profile_user.user_id %}
+  <form method="post" action="{{ url_for('profile_photo_upload') }}" enctype="multipart/form-data" class="avatar-form">
+    <label for="photo">Update profile photo (under 400KB)</label>
+    <div style="display:flex; gap:10px;">
+      <input type="file" id="photo" name="photo" accept="image/*" required>
+      <button type="submit" class="btn btn-secondary">Upload</button>
+    </div>
+  </form>
+{% endif %}
+
+{% if listings %}
+  <div class="dash-section">
+    <h2>Listings</h2>
+    <div class="product-grid">
+      {% for product in listings %}
+        <a class="ticket-link" href="{{ url_for('product_detail', product_id=product.product_id) }}">
+          <div class="ticket">
+            <div class="ticket-body">
+              <h3 class="ticket-title">{{ product.title }}</h3>
+              <p class="ticket-desc">{{ product.description }}</p>
+            </div>
+            <div class="perforation"></div>
+            <div class="ticket-stub">
+              <span class="ticket-price">₦{{ '{:,.2f}'.format(product.price) }}</span>
+            </div>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
+<div class="dash-section">
+  <h2>Posts</h2>
+  {% if not posts %}
+    <div class="empty-state">No posts yet.</div>
+  {% endif %}
+  {% for post in posts %}
+    <div class="post-card">
+      <div class="post-header">
+        <span class="post-author">{{ post.author_name }}</span>
+        <span class="post-time">{{ post.created_at }}</span>
+      </div>
+      <p class="post-content">{{ post.content }}</p>
+      <div class="post-actions">
+        <form method="post" action="{{ url_for('post_like', post_id=post.post_id) }}" class="inline-form">
+          <button type="submit" class="post-action-btn {{ 'liked' if post.liked_by_me }}">
+            ♥ {{ post.like_count }}
+          </button>
+        </form>
+        <span class="post-action-btn" style="cursor:default;">💬 {{ post.comments|length }}</span>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+{% endblock %}

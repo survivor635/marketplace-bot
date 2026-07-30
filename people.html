@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}People — Marketplace{% endblock %}
+
+{% block content %}
+
+<h1 style="font-family:var(--font-display); font-size:22px; margin-bottom:20px;">People</h1>
+
+{% if not users %}
+  <div class="empty-state">No one's here yet.</div>
+{% endif %}
+
+<div class="people-list">
+  {% for u in users %}
+    <a class="people-row" href="{{ url_for('profile', user_id=u.user_id) }}">
+      {% if u.profile_photo %}
+        <img class="people-avatar" src="{{ u.profile_photo }}" alt="">
+      {% else %}
+        <span class="people-avatar people-avatar-fallback">{{ u.name[0]|upper }}</span>
+      {% endif %}
+      <span class="people-name">{{ u.name }}</span>
+      {% if u.is_seller %}
+        <span class="status-pill" style="border-color:var(--teal); color:var(--teal);">Seller</span>
+      {% endif %}
+    </a>
+  {% endfor %}
+</div>
+
+{% endblock %}
